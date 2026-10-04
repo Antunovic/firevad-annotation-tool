@@ -4,9 +4,6 @@ A desktop tool for annotating videos of the fire-VAD dataset (RGB and thermal/IR
 camera). In one window, the annotator marks the frame where each new segment starts
 and writes the four caption fields for every segment.
 
-![Screenshot](screenshot.png)
-
-Works on Windows, macOS and Linux.
 
 ## Requirements
 
