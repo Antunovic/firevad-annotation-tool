@@ -2,8 +2,9 @@
 /annotator_config.json
 /annotations/
 
-# Local Python environment created by the launchers.
+# Local Python environments.
 /.venv-annotator/
+/.venv/
 __pycache__/
 *.py[cod]
 

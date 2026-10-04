@@ -23,9 +23,8 @@ segment_id, start_frame, end_frame, temp_min_c, temp_max_c) are filled
 automatically.  Per-frame fire labels (annotations.csv) are NEVER loaded or
 shown to annotators.
 
-Dependencies: Python 3.9+ with Tk 8.6+, numpy, pillow.  Annotators start the
-tool with run_windows.bat, run_mac.command or run_linux.sh, which install the
-dependencies into a private .venv-annotator folder.
+Dependencies: Python 3.9+ with Tk 8.6+, numpy and pillow
+(see requirements.txt: pip install -r requirements.txt).
 Usage:
     python annotate_gui.py               # normal GUI
     python annotate_gui.py --selftest     # headless data/logic validation
@@ -873,8 +872,8 @@ class AnnotationApp(tk.Tk):
         if tk.TkVersion < 8.6:
             raise RuntimeError(
                 "Tk %s is too old and can show a blank window. "
-                "Start the tool with run_mac.command / run_windows.bat / run_linux.sh "
-                "and a Python with Tk 8.6+ (install Python 3.13 from python.org)."
+                "Run the tool with a Python that has Tk 8.6+ (install Python 3.13 "
+                "from python.org, or run: brew install python-tk@3.13 on macOS)."
                 % tk.TkVersion)
         super().__init__()
         self.title(APP_NAME)

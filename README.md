@@ -1,140 +1,134 @@
-# Fire-VAD alat za anotaciju
+# Fire-VAD Annotation Tool
 
-[![Testovi](https://github.com/Antunovic/firevad-annotation-tool/actions/workflows/tests.yml/badge.svg)](https://github.com/Antunovic/firevad-annotation-tool/actions/workflows/tests.yml)
+A desktop tool for annotating videos of the fire-VAD dataset (RGB and thermal/IR
+camera). In one window, the annotator marks the frame where each new segment starts
+and writes the four caption fields for every segment.
 
-Alat za tekstualno anotiranje videozapisa iz fire-VAD dataseta (RGB i termalna/IR kamera).
-Radi na Windowsu, macOS-u i Linuxu. *English: [README_EN.md](README_EN.md).*
+![Screenshot](screenshot.png)
 
-## 1. Preuzimanje
+Works on Windows, macOS and Linux.
 
-1. **Alat:** [firevad-annotation-tool-main.zip](https://github.com/Antunovic/firevad-annotation-tool/archive/refs/heads/main.zip)
-   (ili na vrhu ove stranice: zeleni gumb **Code** → **Download ZIP**).
-2. **Videozapisi:** `test_VAD.zip` (oko 3 GB); link na Google Drive dobit ćeš od koordinatora projekta.
-   Google Drive upozori da tako veliku datoteku ne može provjeriti na viruse;
-   klikni **Download anyway**.
-3. Raspakiraj **oba** ZIP-a u istu mapu, npr. u *Preuzimanja* (Downloads):
+## Requirements
 
-   ```text
-   Downloads/
-     firevad-annotation-tool-main/    ← alat
-     test_VAD/                        ← videozapisi
-       environment_1/
-       environment_2/
-       ...
-   ```
+- Python 3.9 or newer with **Tk 8.6+** (the `tkinter` that ships with Python)
+- numpy and Pillow (listed in `requirements.txt`)
 
-   - **Windows:** desni klik na ZIP → **Extract All…** (*Izdvoji sve…*) → **Extract**.
-     Savjet: prije raspakiravanja desni klik na ZIP → **Properties**, označi **Unblock**
-     i klikni **OK**. Tada Windows kasnije ne prikazuje sigurnosna upozorenja za alat.
-   - **macOS:** dvoklik na ZIP (Safari ga obično raspakira sam).
-
-   Dodatne mape koje nastanu raspakiravanjem (npr. `test_VAD\test_VAD\`) nisu problem.
-   Ako alat ne pronađe videozapise, pitat će te gdje su.
-
-## 2. Pokretanje
-
-Prvo pokretanje traje minutu-dvije i treba internet: alat u svoju mapu `.venv-annotator`
-instalira Python pakete numpy i Pillow. U sustav se ne instalira ništa osim Pythona,
-i to samo ako ga nema. Kasnije alat radi i bez interneta.
-
-### Windows
-
-1. U mapi alata dvoklikni **`run_windows.bat`**.
-2. Ako se pojavi upozorenje *Windows protected your PC*, klikni **More info** pa **Run anyway**.
-   Kod upozorenja *Open File – Security Warning* klikni **Run**.
-3. Ako na računalu nema Pythona, skripta ponudi da ga instalira: pritisni **Y**.
-   Ako to ne uspije, instaliraj Python 3.13 sa [python.org](https://www.python.org/downloads/windows/)
-   (*Windows installer (64-bit)*, zadane postavke) i ponovno pokreni `run_windows.bat`.
-4. Crni prozor ostavi otvoren dok radiš.
-
-### macOS
-
-1. U mapi alata dvoklikni **`run_mac.command`**.
-2. Ako macOS javi da datoteku ne može otvoriti (*Apple could not verify…* ili
-   *unidentified developer*), zatvori poruku, pa:
-   - na macOS-u 15 i novijem: **System Settings** → **Privacy & Security**, pri dnu kod
-     *run_mac.command* klikni **Open Anyway** i potvrdi;
-   - na starijem macOS-u: desni klik (Control-klik) na `run_mac.command` → **Open** → **Open**.
-
-   Može i bez upozorenja: otvori aplikaciju **Terminal**, upiši `bash ` (s razmakom na kraju),
-   povuci `run_mac.command` u prozor Terminala i pritisni **Enter**.
-3. Ako na Macu nema odgovarajućeg Pythona, otvorit će se python.org: preuzmi i instaliraj
-   *macOS 64-bit universal2 installer*, pa ponovno pokreni `run_mac.command`.
-4. Ako macOS pita smije li Terminal pristupiti mapi *Downloads*, klikni **Allow**.
-   Prozor Terminala ostavi otvoren dok radiš.
-
-### Linux
-
-U terminalu, u mapi alata, pokreni `bash run_linux.sh`.
-Potreban je Python 3 s Tk-om i venv-om, npr. na Ubuntuu/Debianu:
-`sudo apt install python3 python3-tk python3-venv`.
-
-## 3. Prvo pokretanje
-
-- Upiši svoje **ime i prezime**. Njime su označene sve tvoje anotacije, zato ga uvijek
-  piši jednako. Alat ga pamti; možeš ga promijeniti gumbom **Change annotator…**.
-- Alat sam pronađe mapu `test_VAD`. Ako je ne nađe, odaberi mapu u koju si raspakirao
-  `test_VAD.zip`. Kasnije je možeš promijeniti gumbom **Change dataset folder…**.
-
-## 4. Anotiranje
-
-1. Odaberi scenu i klikni **Open scene** (ili dvoklik na scenu).
-2. Prikazana su tri sinkronizirana videa:
-   - **RGB**: obični video,
-   - **IR – relative**: termalna slika s kontrastom prilagođenim svakom frameu (dobro se vide oblici),
-   - **IR – absolute**: termalna slika na stalnoj temperaturnoj skali (raspon upiši u
-     **Abs. range (°C)** ili klikni **Video range** za raspon cijelog videa).
-
-   Kad je miš iznad IR prikaza, vidiš temperaturu u °C.
-3. **Segmenti:** zaustavi video na frameu u kojem počinje novi segment i pritisni **B**.
-   Novi segment počinje kad se nešto pojavi ili nestane sa scene ili kad osoba promijeni
-   radnju. Segmenti se nižu jedan za drugim i pokrivaju cijeli video.
-4. **Opisi:** za svaki segment (odaberi ga u popisu lijevo) napiši četiri kratka opisa
-   **na engleskom**:
-
-   | Polje | Što opisati |
-   |---|---|
-   | 1. RGB initial state | početno stanje: relevantni objekti i osobe te gdje se nalaze |
-   | 2. Dynamics in RGB | radnje, pojave i promjene tijekom segmenta (samo RGB) |
-   | 3. IR initial state | što je na početku segmenta toplije ili hladnije od okoline i gdje |
-   | 4. Dynamics in IR | raste li, pada li ili miruje temperatura; širi li se ili skuplja toplije područje |
-
-   Opisuj objektivno, samo ono što se vidi: bez tumačenja opasnosti i namjera ljudi te
-   bez neodređenih riječi poput *slightly*, *slowly* ili *rapidly*. Ne pozivaj se na
-   prethodne segmente. Gumbi uz polja upisuju standardne rečenice (npr. **No changes**).
-   Detaljne upute su u alatu: **Boundary instructions…** i **Caption instructions…**.
-5. Spremi s **Ctrl+S** (na Macu **Cmd+S**). Nedovršen rad možeš spremiti i nastaviti kasnije.
-
-| Tipka | Radnja |
+| OS | Notes |
 |---|---|
-| Space | play / pauza |
-| ← / → | jedan frame natrag / naprijed |
-| ↑ / ↓ | 10 frameova natrag / naprijed |
-| B | novi segment počinje na ovom frameu |
-| Delete | ukloni početnu granicu odabranog segmenta |
-| F1 | pomoć |
+| Windows | The [python.org](https://www.python.org/downloads/windows/) installer includes Tk by default (keep *tcl/tk and IDLE* checked). |
+| macOS | Apple's bundled `/usr/bin/python3` has Tk 8.5, which shows a blank window. Install Python from [python.org](https://www.python.org/downloads/macos/) or run `brew install python-tk@3.13`. |
+| Linux | Also install the Tk package: `sudo apt install python3-tk` (Ubuntu/Debian) or `sudo dnf install python3-tkinter` (Fedora). |
 
-## 5. Slanje anotacija
+## Installation
 
-1. U glavnom prozoru klikni **Export all my annotations**, a zatim **Yes** da se otvori mapa.
-2. Pošalji datoteku **`combined_export.json`** koordinatoru projekta.
+```bash
+git clone https://github.com/Antunovic/firevad-annotation-tool.git
+cd firevad-annotation-tool
+pip install -r requirements.txt
+```
 
-Anotacije se spremaju u mapu alata, u `annotations/<tvoje_ime>/`. Ne briši tu mapu.
+Or download the ZIP (green **Code** button → **Download ZIP**), extract it and run
+the same `pip` command in the extracted folder.
 
-## 6. Nova verzija alata
+On Ubuntu 23.04 and newer, the system Python refuses `pip install`
+("externally-managed environment"). Use a virtual environment there:
 
-1. Preuzmi i raspakiraj novu verziju alata (vidi 1. korak). Staru mapu još ne briši.
-2. Iz stare mape alata kopiraj u novu mapu **`annotations`** i datoteku **`annotator_config.json`**.
-3. Pokreni novu verziju i provjeri jesu li tvoje anotacije tu. Tek tada obriši staru mapu.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-## Problemi
+## Dataset
 
-| Problem | Rješenje |
+The videos are not part of this repository. Get `test_VAD.zip` (about 3 GB, Google
+Drive link from the project coordinator), extract it and either:
+
+- put the `test_VAD` folder **next to** this repository folder — the tool finds it
+  there automatically (folders added by extracting, such as `test_VAD/test_VAD`,
+  are fine too), or
+- extract it anywhere and select the folder in the tool with
+  **Change dataset folder…**.
+
+## Running
+
+```bash
+python annotate_gui.py
+```
+
+On the first run you are asked for your **full name** — it identifies all your
+annotation files, so always type it the same way. Annotations are stored locally
+in the tool folder and never modify the dataset:
+
+```
+annotations/<your_name>/environment_<X>/<Y>.json   # one file per video
+annotator_config.json                              # saved name and dataset location
+```
+
+## Annotating
+
+1. Select a scene, press **Open scene**. Three synchronized panels open:
+   **RGB**, **IR – relative** (contrast stretched per frame, shows structure) and
+   **IR – absolute** (fixed temperature scale — type the range or press
+   **Video range**). Hovering the mouse over an IR panel shows the exact
+   temperature in °C.
+2. Pause at the frame where a new segment starts and press **B**. A new segment
+   starts when something appears or disappears, or when a person changes their
+   action. Segments are consecutive and cover the whole video.
+3. For each segment write four short captions **in English**: RGB initial state,
+   RGB dynamics, IR initial state, IR dynamics. Preset buttons insert standard
+   sentences for common cases ("No changes", "No temperature differences", …).
+4. Save with **Ctrl+S** (macOS: **Cmd+S**). Unfinished work can be resumed later.
+5. **Export all my annotations** writes
+   `annotations/<your_name>/combined_export.json` — send that file to the
+   coordinator.
+
+The complete annotation guidelines are built into the tool: **Help**,
+**Boundary instructions…** and **Caption instructions…**.
+
+| Key | Action |
 |---|---|
-| Na Macu se otvori prazan (bijeli) prozor | Pokreni alat preko `run_mac.command`, a ne naredbom `python3 annotate_gui.py`. Ako ne pomogne, instaliraj Python 3.13 s python.org. |
-| *annotate_gui.py not found* | ZIP nije raspakiran. Raspakiraj ga (1. korak) i pokreni alat iz raspakirane mape. |
-| *No fire-VAD videos were found* | Raspakiraj `test_VAD.zip` i odaberi raspakiranu mapu. |
-| Instalacija numpy/Pillow ne uspije | Provjeri internetsku vezu i pokreni ponovno. Ako i dalje ne radi, instaliraj Python 3.13 i obriši mapu `.venv-annotator` u mapi alata (na Macu skrivene mape prikazuje **Cmd+Shift+.**). |
-| Nešto drugo | Pošalji koordinatoru snimku zaslona crnog prozora (Windows) ili Terminala (macOS). |
+| Space | play / pause |
+| ← / → | one frame back / forward |
+| ↑ / ↓ | 10 frames back / forward |
+| Home / End | first / last frame |
+| B | a new segment starts at the current frame |
+| Delete | remove the start boundary of the selected segment |
+| F1 | help |
 
-Za developere (testovi, CI, alati za dataset): [README_EN.md](README_EN.md#for-developers).
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Blank (white) window on a Mac | Apple's Python has Tk 8.5. Install Python from python.org (or `brew install python-tk@3.13`) and run the tool with it. |
+| `No fire-VAD videos were found` | Extract `test_VAD.zip` and select the folder with **Change dataset folder…**. |
+| `externally-managed-environment` (Linux) | Use a virtual environment — see Installation. |
+| `No module named '_tkinter'` (Linux) | `sudo apt install python3-tk` |
+| `No module named 'numpy'` or `'PIL'` | `pip install -r requirements.txt` |
+| Anything else | Send the coordinator a screenshot of the terminal output. |
+
+## Development
+
+`python annotate_gui.py --selftest` runs a headless self-check of the logic and
+the dataset, and exits with a status code.
+
+---
+
+## Brzi vodič (HR)
+
+1. Instalacija: Python 3.9+ s Tk 8.6+ (na Macu **ne** Appleov `python3` nego Python
+   s [python.org](https://www.python.org/downloads/macos/) ili
+   `brew install python-tk@3.13`; na Linuxu i `sudo apt install python3-tk`), zatim
+   `pip install -r requirements.txt`.
+2. Pokretanje: `python annotate_gui.py`. Pri prvom pokretanju upiši svoje **puno
+   ime** — njime su označene sve tvoje anotacije.
+3. Mapu `test_VAD` s videozapisima stavi pokraj alata (alat je sam nađe) ili je
+   odaberi gumbom **Change dataset folder…**.
+4. Odaberi scenu i klikni **Open scene**. Na frameu u kojem počinje novi segment
+   pritisni **B** (novi segment = nešto se pojavi ili nestane sa scene ili osoba
+   promijeni radnju). Za svaki segment napiši 4 kratka opisa **na engleskom**:
+   početno stanje scene, radnje i promjene (RGB), početno stanje u IR, dinamika u
+   IR. Piši objektivno, bez riječi tipa *slightly*/*slowly*/*rapidly*. Spremi s
+   **Ctrl+S** / **Cmd+S**.
+5. Na kraju klikni **Export all my annotations** i pošalji datoteku
+   `combined_export.json` koordinatoru.
