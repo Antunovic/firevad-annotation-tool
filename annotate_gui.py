@@ -798,66 +798,12 @@ class FrameStats:
 # Guidance texts (from the annotation instructions document)
 # --------------------------------------------------------------------------
 
-GUIDANCE_BOUNDARIES = """SEGMENTIRANJE
-Svaki video podijeliti na segmente (jedan segment = interval u kojem se ukupna situacija ne mijenja).
-
-Novi segment počinje kada:
-  • nešto novo se pojavi na sceni,
-  • nešto nestane sa scene,
-  • osoba/e promijeni svoju radnju.
-
-Označite frame u kojem počinje novi segment (tipka B ili gumb).
-Segmenti su uzastopni i prekrivaju cijeli videozapis.
-Svaki segment je zasebna jedinica — granice označavate samostalno, ne gledate
-oznake drugih anotatora.
+GUIDANCE_BOUNDARIES = """
 """
 
-GUIDANCE_CAPTIONS = """POLJE 1 — scena i prostorni kontekst (početno stanje):
-Koji su relevantni predmeti i osobe prisutni i gdje se nalaze u odnosu jedni na druge?
-• Uključiti dovoljno konteksta za razumijevanje isječka, bez nabrajanja svakog vidljivog objekta.
-• U slučaju da se ljudi pojavljuju na sceni, opisati njihov prostorni položaj (gdje se nalaze i koliko ih je).
-• Prostorne odnose opisati na temelju RGB prikaza (lijevo, desno, iznad, ispod, ispred, iza…).
-• Opisati situaciju kakva je ona na početku segmenta; sve ostale izmjene i interakcije opisuju se u polju 2.
+GUIDANCE_CAPTIONS = """"""
 
-POLJE 2 — akteri, radnje, pojave i promjene:
-Što rade ljudi, mogu li se uočiti promjene, koje su pojave uočljive, a što ostaje nepromijenjeno?
-• Opisati događaje, radnje, pojave na sceni i uključene aktere.
-• Opisati redoslijed događaja u segmentu ako je relevantan ("osoba pomiče stol nakon čega nosi kutije").
-• Ako nema vidljive promjene, navesti da je scena stacionarna ("Nothing happens. The scene remains unchanged.").
-Gumbi uz polja upisuju standardne opise za česte slučajeve (bez promjena, nema temperaturnih razlika, scena nije vidljiva u RGB-u).
-• Fokus na RGB; za ovo se polje uopće ne fokusirati na IR.
-VAŽNO: objektivno opisati što se događa na sceni bez tumačenja opasnosti scene; nikako ne pretpostavljati ili implicirati namjeru ljudi. Samo ono što se opažajno može utvrditi.
-
-POLJE 3 — početno stanje u IR spektru:
-Koji relevantni objekti ili područja na početku segmenta imaju očigledno višu ili nižu prividnu površinsku temperaturu od okolnih vidljivih površina? Navesti njihovu lokaciju i s čime se uspoređuju.
-• Opisati postoji li na sceni nešto što je toplije od okoline.
-• Opisati što se vidi na termalnoj snimci.
-
-POLJE 4 — dinamika u IR spektru:
-Kako se tijekom segmenta mijenja prividna površinska temperatura relevantnih objekata ili područja: raste, pada ili ostaje približno stabilna? Povećava li se, smanjuje ili ostaje približno jednak prostorni opseg toplijeg područja?
-• Opisati što se zagrijava, gdje se to nalazi, širi li se ili skuplja područje više temperature kroz segment.
-• Gledati temperaturu, ne samo boju prikaza.
-
-Standardizacija vokabulara: izbjegavati nedefinirane stupnjeve intenziteta ili brzine (slightly, slowly, rapidly, moderately…).
-Opisi se pišu na engleskom. Svaki segment je zasebna jedinica — ne referirati se na prijašnje segmente (npr. "The person continues to sort the boxes…").
-"""
-
-KEYBOARD_HELP = """Controls:
-  Space            play / pause
-  Left / Right     -1 / +1 frame
-  Up / Down        -10 / +10 frames
-  Home / End       first / last frame
-  B                new segment starts at the current frame
-  Delete           remove the start boundary of the selected segment
-  Ctrl+S / Cmd+S   save
-  F1               keyboard help
-
-The caption fields always belong to the selected segment (highlighted blue
-on the timeline). When playback is paused, the selection follows the red
-playhead; clicking a segment in the list jumps to its first frame.
-Hover the mouse over an IR panel to read the exact temperature at that pixel.
-Click or drag the timeline to seek.
-"""
+KEYBOARD_HELP = """"""
 
 
 # --------------------------------------------------------------------------
