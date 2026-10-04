@@ -1,0 +1,22 @@
+# Personal, per-annotator files: never commit or share these.
+/annotator_config.json
+/annotations/
+
+# Local Python environment created by the launchers.
+/.venv-annotator/
+__pycache__/
+*.py[cod]
+
+# Dataset copies and archives (distributed separately, e.g. via Google Drive).
+/test_VAD*/
+environment_*/
+*.zip
+*.npz
+*.npy
+
+# OS clutter.
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+*.tmp

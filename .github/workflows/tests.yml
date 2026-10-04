@@ -1,0 +1,89 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }}, Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, python: "3.13", launcher: run_windows.bat }
+          - { os: windows-latest, python: "3.14", launcher: run_windows.bat }
+          - { os: macos-latest, python: "3.13", launcher: run_mac.command }
+          - { os: ubuntu-latest, python: "3.13", launcher: run_linux.sh }
+          - { os: ubuntu-24.04, python: "3.9", launcher: run_linux.sh }
+    env:
+      FIREVAD_NONINTERACTIVE: "1"
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        id: setup
+        with:
+          python-version: ${{ matrix.python }}
+
+      # The annotators' first start: the launcher creates .venv-annotator and
+      # installs numpy and Pillow into it, then starts the app (here: --help).
+      - name: First start with ${{ matrix.launcher }}
+        if: runner.os != 'Windows'
+        env:
+          FIREVAD_PYTHON: ${{ steps.setup.outputs.python-path }}
+        run: bash ${{ matrix.launcher }} --help
+
+      - name: First start with run_windows.bat
+        if: runner.os == 'Windows'
+        shell: cmd
+        env:
+          FIREVAD_PYTHON: ${{ steps.setup.outputs.python-path }}
+        run: |
+          call run_windows.bat --help
+          if errorlevel 1 exit /b 1
+
+      - name: Use the launcher's environment for the next steps
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then py=.venv-annotator/Scripts/python.exe; else py=.venv-annotator/bin/python; fi
+          test -x "$py"
+          echo "PY=$PWD/$py" >> "$GITHUB_ENV"
+          echo "DATA=$RUNNER_TEMP/test data" >> "$GITHUB_ENV"
+
+      - name: Synthetic dataset, nested like Windows "Extract All" output
+        run: '"$PY" tests/make_test_dataset.py "$DATA" --wrap'
+
+      - name: Unit and launcher tests
+        run: '"$PY" -m unittest discover -s tests -v'
+
+      # A second start must reuse .venv-annotator without FIREVAD_PYTHON.
+      - name: Selftest through ${{ matrix.launcher }}
+        if: runner.os != 'Windows'
+        run: bash ${{ matrix.launcher }} --selftest --dataset-root "$DATA"
+
+      - name: Selftest through run_windows.bat
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          call run_windows.bat --selftest --dataset-root "%DATA%"
+          if errorlevel 1 exit /b 1
+
+      - name: GUI test
+        if: runner.os != 'Linux'
+        run: '"$PY" annotate_gui.py --guitest --dataset-root "$DATA"'
+
+      - name: GUI test on a virtual display
+        if: runner.os == 'Linux'
+        run: |
+          command -v xvfb-run >/dev/null || { sudo apt-get update && sudo apt-get install -y xvfb; }
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$PY" annotate_gui.py --guitest --dataset-root "$DATA"
