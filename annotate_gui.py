@@ -54,8 +54,23 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
 APP_NAME = "Fire-VAD Annotation Tool"
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_DIR = SCRIPT_DIR          # overridden by --guitest
+FROZEN = getattr(sys, "frozen", False)      # True in the PyInstaller builds
+
+
+def _app_dir():
+    """Folder the annotator sees the program in (used to look for the videos)."""
+    if not FROZEN:
+        return os.path.dirname(os.path.abspath(__file__))
+    exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+    bundle = re.fullmatch(r"(.*)\.app/Contents/MacOS", exe_dir.replace(os.sep, "/"))
+    return os.path.dirname(bundle.group(1)) if bundle else exe_dir
+
+
+SCRIPT_DIR = _app_dir()
+# The installed app folder can be read-only or randomly relocated (macOS App
+# Translocation), so a frozen build keeps the annotations in the home folder.
+PROJECT_DIR = (os.path.join(os.path.expanduser("~"), "FireVAD-Annotator")
+               if FROZEN else SCRIPT_DIR)       # overridden by --guitest
 
 IR_DIR_NAME = "IR"
 RGB_DIR_NAME = "RGB"
@@ -2395,8 +2410,31 @@ def main():
         app = AnnotationApp()
         app.mainloop()
     except Exception:
-        traceback.print_exc()
+        report_fatal_error()
         sys.exit(1)
+
+
+def report_fatal_error():
+    """Print the traceback; the windowed builds have no console, so show it in a dialog."""
+    text = traceback.format_exc()
+    if sys.stderr:
+        sys.stderr.write(text)
+    if not FROZEN:
+        return
+    log = os.path.join(PROJECT_DIR, "error.log")
+    try:
+        os.makedirs(PROJECT_DIR, exist_ok=True)
+        with open(log, "w", encoding="utf-8") as f:
+            f.write(text)
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror(
+            APP_NAME, "The tool stopped because of an error.\n\n"
+            "Send this file to the coordinator:\n%s\n\n%s"
+            % (log, text.strip().splitlines()[-1]))
+        root.destroy()
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

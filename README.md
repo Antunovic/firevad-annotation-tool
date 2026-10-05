@@ -4,69 +4,84 @@ A desktop tool for annotating videos of the fire-VAD dataset (RGB and thermal/IR
 camera). In one window, the annotator marks the frame where each new segment starts
 and writes the four caption fields for every segment.
 
+Ready-made apps for Windows, macOS and Linux: no Python and no installation needed.
 
-## Requirements
+## 1. Download
 
-- Python 3.9 or newer with **Tk 8.6+** (the `tkinter` that ships with Python)
-- numpy and Pillow (listed in `requirements.txt`)
+1. **The app:** open the [latest release](https://github.com/Antunovic/firevad-annotation-tool/releases/latest)
+   and download the file for your computer:
 
-| OS | Notes |
-|---|---|
-| Windows | The [python.org](https://www.python.org/downloads/windows/) installer includes Tk by default (keep *tcl/tk and IDLE* checked). |
-| macOS | Apple's bundled `/usr/bin/python3` has Tk 8.5, which shows a blank window. Install Python from [python.org](https://www.python.org/downloads/macos/) or run `brew install python-tk@3.13`. |
-| Linux | Also install the Tk package: `sudo apt install python3-tk` (Ubuntu/Debian) or `sudo dnf install python3-tkinter` (Fedora). |
+   | System | File |
+   |---|---|
+   | Windows | `FireVAD-Annotator-Windows.zip` |
+   | Mac with Apple chip (M1, M2, M3, ...) | `FireVAD-Annotator-macOS-AppleSilicon.zip` |
+   | Mac with Intel processor | `FireVAD-Annotator-macOS-Intel.zip` |
+   | Linux | `FireVAD-Annotator-Linux.tar.gz` |
 
-## Installation
+   On a Mac, **Apple menu → About This Mac** shows *Chip: Apple M…* or *Processor: Intel*.
+
+2. **The videos:** `test_VAD.zip` (about 3 GB). The coordinator sends you the Google Drive link.
+   Google Drive says it cannot scan such a large file for viruses; click **Download anyway**.
+
+3. Extract both ZIP files, for example into *Downloads*. Keep the folder `test_VAD`
+   next to the app folder or in the same parent folder; the app finds it by itself
+   (extra folders created by extracting, such as `test_VAD/test_VAD`, are fine).
+   If it does not find the videos, it asks you to select the folder.
+
+## 2. Start
+
+### Windows
+
+1. Right-click the ZIP → **Properties**, tick **Unblock**, click **OK** (this avoids most warnings).
+   Then right-click → **Extract All…**. Do not start the app from inside the ZIP.
+2. Open the extracted folder and double-click **`FireVAD-Annotator.exe`**.
+3. If *Windows protected your PC* appears: **More info** → **Run anyway**.
+
+### macOS
+
+1. Double-click the ZIP to extract it. Drag **FireVAD-Annotator** into *Applications* (optional).
+2. Double-click the app. The app is not signed by Apple, so macOS first refuses to open it
+   (*"FireVAD-Annotator" cannot be opened*). Then:
+   - **macOS 15 and newer:** close the message, open **System Settings → Privacy & Security**, scroll down,
+     click **Open Anyway** next to *FireVAD-Annotator* and confirm.
+   - **Older macOS:** right-click (Control-click) the app → **Open** → **Open**.
+   - Or in the **Terminal** app: `xattr -dr com.apple.quarantine /path/to/FireVAD-Annotator.app`
+     (drag the app into the Terminal window instead of typing the path).
+
+   This is needed only the first time.
+3. If macOS asks whether the app may access the *Downloads* folder, click **Allow**.
+
+### Linux
 
 ```bash
-git clone https://github.com/Antunovic/firevad-annotation-tool.git
-cd firevad-annotation-tool
-pip install -r requirements.txt
+tar -xzf FireVAD-Annotator-Linux.tar.gz
+./FireVAD-Annotator/FireVAD-Annotator
 ```
 
-Or download the ZIP (green **Code** button → **Download ZIP**), extract it and run
-the same `pip` command in the extracted folder.
+Built on Ubuntu 22.04; it needs a desktop session (X11, or Wayland with XWayland).
 
-On Ubuntu 23.04 and newer, the system Python refuses `pip install`
-("externally-managed environment"). Use a virtual environment there:
+## 3. First start
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+On the first start you are asked for your **full name**. It identifies all your annotation
+files, so always type it the same way. **Change annotator…** changes it later;
+**Change dataset folder…** changes the folder with the videos.
 
-## Dataset
-
-The videos are not part of this repository. Get `test_VAD.zip` (about 3 GB, Google
-Drive link from the project coordinator), extract it and either:
-
-- put the `test_VAD` folder **next to** this repository folder — the tool finds it
-  there automatically (folders added by extracting, such as `test_VAD/test_VAD`,
-  are fine too), or
-- extract it anywhere and select the folder in the tool with
-  **Change dataset folder…**.
-
-## Running
-
-```bash
-python annotate_gui.py
-```
-
-On the first run you are asked for your **full name** — it identifies all your
-annotation files, so always type it the same way. Annotations are stored locally
-in the tool folder and never modify the dataset:
+Your work is saved in the folder **`FireVAD-Annotator` in your home folder**
+(Windows: `C:\Users\<you>\FireVAD-Annotator`, macOS: `/Users/<you>/FireVAD-Annotator`):
 
 ```
-annotations/<your_name>/environment_<X>/<Y>.json   # one file per video
-annotator_config.json                              # saved name and dataset location
+FireVAD-Annotator/
+  annotator_config.json                              saved name and videos location
+  annotations/<your_name>/environment_<X>/<Y>.json   one file per video
 ```
 
-## Annotating
+The videos are never modified. Do not delete this folder; unfinished work continues from there.
+
+## 4. Annotating
 
 1. Select a scene, press **Open scene**. Three synchronized panels open:
    **RGB**, **IR – relative** (contrast stretched per frame, shows structure) and
-   **IR – absolute** (fixed temperature scale — type the range or press
+   **IR – absolute** (fixed temperature scale: type the range or press
    **Video range**). Hovering the mouse over an IR panel shows the exact
    temperature in °C.
 2. Pause at the frame where a new segment starts and press **B**. A new segment
@@ -75,13 +90,9 @@ annotator_config.json                              # saved name and dataset loca
 3. For each segment write four short captions **in English**: RGB initial state,
    RGB dynamics, IR initial state, IR dynamics. Preset buttons insert standard
    sentences for common cases ("No changes", "No temperature differences", …).
-4. Save with **Ctrl+S** (macOS: **Cmd+S**). Unfinished work can be resumed later.
-5. **Export all my annotations** writes
-   `annotations/<your_name>/combined_export.json` — send that file to the
-   coordinator.
-
-The complete annotation guidelines are built into the tool: **Help**,
-**Boundary instructions…** and **Caption instructions…**.
+4. Save with **Ctrl+S** (macOS: **Cmd+S**). You can stop at any time and continue later.
+5. When you are done, click **Export all my annotations** and **Yes** to open the folder.
+   Send the file **`combined_export.json`** to the coordinator.
 
 | Key | Action |
 |---|---|
@@ -97,35 +108,48 @@ The complete annotation guidelines are built into the tool: **Help**,
 
 | Problem | Fix |
 |---|---|
-| Blank (white) window on a Mac | Apple's Python has Tk 8.5. Install Python from python.org (or `brew install python-tk@3.13`) and run the tool with it. |
+| Windows or macOS refuses to start the app | See "Start" above: **Run anyway** (Windows), **Open Anyway** (macOS). |
 | `No fire-VAD videos were found` | Extract `test_VAD.zip` and select the folder with **Change dataset folder…**. |
-| `externally-managed-environment` (Linux) | Use a virtual environment — see Installation. |
-| `No module named '_tkinter'` (Linux) | `sudo apt install python3-tk` |
-| `No module named 'numpy'` or `'PIL'` | `pip install -r requirements.txt` |
-| Anything else | Send the coordinator a screenshot of the terminal output. |
+| The app closes with an error message | Send the coordinator the file it names (`error.log` in the `FireVAD-Annotator` folder). |
+| Anything else | Send the coordinator a screenshot. |
 
-## Development
+## Run from source (developers)
 
-`python annotate_gui.py --selftest` runs a headless self-check of the logic and
-the dataset, and exits with a status code.
+Needs Python 3.9+ with **Tk 8.6+** (`tkinter` comes with Python; on Linux
+`sudo apt install python3-tk`; on macOS use Python from python.org, because Apple's bundled
+Python has Tk 8.5 and shows a blank window), plus the packages in `requirements.txt`:
+
+```bash
+git clone https://github.com/Antunovic/firevad-annotation-tool.git
+cd firevad-annotation-tool
+pip install -r requirements.txt
+python annotate_gui.py
+```
+
+When run from source, the config and annotations are stored in the repository folder instead.
+`python annotate_gui.py --selftest` runs a headless self-check. The apps are built
+by the *build-apps* workflow (PyInstaller); pushing a tag such as `v1.0.1` publishes a new release.
 
 ---
 
 ## Brzi vodič (HR)
 
-1. Instalacija: Python 3.9+ s Tk 8.6+ (na Macu **ne** Appleov `python3` nego Python
-   s [python.org](https://www.python.org/downloads/macos/) ili
-   `brew install python-tk@3.13`; na Linuxu i `sudo apt install python3-tk`), zatim
-   `pip install -r requirements.txt`.
-2. Pokretanje: `python annotate_gui.py`. Pri prvom pokretanju upiši svoje **puno
-   ime** — njime su označene sve tvoje anotacije.
-3. Mapu `test_VAD` s videozapisima stavi pokraj alata (alat je sam nađe) ili je
-   odaberi gumbom **Change dataset folder…**.
-4. Odaberi scenu i klikni **Open scene**. Na frameu u kojem počinje novi segment
-   pritisni **B** (novi segment = nešto se pojavi ili nestane sa scene ili osoba
-   promijeni radnju). Za svaki segment napiši 4 kratka opisa **na engleskom**:
-   početno stanje scene, radnje i promjene (RGB), početno stanje u IR, dinamika u
-   IR. Piši objektivno, bez riječi tipa *slightly*/*slowly*/*rapidly*. Spremi s
+1. Na stranici [Releases](https://github.com/Antunovic/firevad-annotation-tool/releases/latest)
+   preuzmi datoteku za svoje računalo (Windows, Mac s Apple čipom, Mac s Intel procesorom ili
+   Linux), raspakiraj je i pokreni **FireVAD-Annotator**. Python ne treba instalirati.
+   - **Windows:** ako se pojavi *Windows protected your PC*, klikni **More info** → **Run anyway**.
+   - **macOS:** aplikacija nije potpisana pa je macOS prvi put odbije otvoriti. Otvori
+     **System Settings → Privacy & Security**, pri dnu klikni **Open Anyway** (na starijem macOS-u:
+     desni klik na aplikaciju → **Open** → **Open**).
+2. Videozapise (`test_VAD.zip`, oko 3 GB, link na Google Drive dobiješ od koordinatora) raspakiraj
+   u istu mapu kao i aplikaciju (npr. *Preuzimanja*) ili ih odaberi gumbom **Change dataset folder…**.
+3. Pri prvom pokretanju upiši svoje **puno ime** — njime su označene sve tvoje anotacije.
+   Rad se sprema u mapu **`FireVAD-Annotator` u tvojoj matičnoj mapi** (ne briši je); nedovršeni
+   rad možeš nastaviti kasnije.
+4. Odaberi scenu i klikni **Open scene**. Na frameu u kojem počinje novi segment pritisni **B** (novi
+   segment = nešto se pojavi ili nestane sa scene ili osoba promijeni radnju). Za svaki segment napiši
+   4 kratka opisa **na engleskom**: početno stanje scene, radnje i promjene (RGB), početno stanje u IR,
+   dinamika u IR. Piši objektivno, bez riječi tipa *slightly*/*slowly*/*rapidly*. Spremi s
    **Ctrl+S** / **Cmd+S**.
-5. Na kraju klikni **Export all my annotations** i pošalji datoteku
-   `combined_export.json` koordinatoru.
+5. Na kraju klikni **Export all my annotations** i pošalji datoteku `combined_export.json`
+   koordinatoru.

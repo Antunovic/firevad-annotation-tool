@@ -1,0 +1,123 @@
+name: build-apps
+
+# Builds the double-click apps with PyInstaller. Pushing a tag such as v1.0.0
+# also publishes them as a GitHub Release; "Run workflow" only builds them.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows, os: windows-latest, asset: FireVAD-Annotator-Windows.zip }
+          - { name: macOS-AppleSilicon, os: macos-latest, asset: FireVAD-Annotator-macOS-AppleSilicon.zip }
+          - { name: macOS-Intel, os: macos-15-intel, asset: FireVAD-Annotator-macOS-Intel.zip }
+          - { name: Linux, os: ubuntu-22.04, asset: FireVAD-Annotator-Linux.tar.gz }
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Build the app
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+          pyinstaller --noconfirm --windowed --name FireVAD-Annotator annotate_gui.py
+
+      - name: Make a tiny test dataset
+        shell: python
+        run: |
+          import os
+          import numpy as np
+          from PIL import Image
+
+          root = os.path.join(os.environ["RUNNER_TEMP"], "data", "test_VAD")
+          for scene in (1, 2):
+              folder = os.path.join(root, "environment_1", str(scene))
+              os.makedirs(os.path.join(folder, "RGB"))
+              frames = np.full((150, 400, 540), 20, dtype=np.float16)
+              frames[:, 100:200, 100:200] += (np.arange(150) / 10).astype(np.float16)[:, None, None]
+              np.savez_compressed(os.path.join(folder, "IR.npz"), frames=frames)
+              for i in range(150):
+                  Image.new("RGB", (64, 48), (i, 90, 90)).save(
+                      os.path.join(folder, "RGB", "%d.jpg" % i))
+          print("dataset in", root)
+
+      # The built app has to find numpy, Pillow and Tk inside itself.
+      - name: Test the built app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          APP=dist/FireVAD-Annotator.app/Contents/MacOS/FireVAD-Annotator
+          "$APP" --selftest --dataset-root "$RUNNER_TEMP/data"
+          "$APP" --guitest --dataset-root "$RUNNER_TEMP/data"
+
+      - name: Test the built app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          command -v xvfb-run >/dev/null || { sudo apt-get update && sudo apt-get install -y xvfb; }
+          APP=dist/FireVAD-Annotator/FireVAD-Annotator
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$APP" --selftest --dataset-root "$RUNNER_TEMP/data"
+          xvfb-run -a -s "-screen 0 1920x1080x24" "$APP" --guitest --dataset-root "$RUNNER_TEMP/data"
+
+      # The Windows build has no console, so judge it by its exit code.
+      - name: Test the built app (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($mode in "--selftest", "--guitest") {
+            $p = Start-Process -FilePath dist\FireVAD-Annotator\FireVAD-Annotator.exe `
+              -ArgumentList $mode, "--dataset-root", "`"$env:RUNNER_TEMP\data`"" -Wait -PassThru
+            Write-Host "$mode exit code: $($p.ExitCode)"
+            if ($p.ExitCode -ne 0) { exit 1 }
+          }
+
+      - name: Package
+        run: |
+          case "$RUNNER_OS" in
+            Windows) python -m zipfile -c "${{ matrix.asset }}" dist/FireVAD-Annotator ;;
+            macOS)   ditto -c -k --sequesterRsrc --keepParent dist/FireVAD-Annotator.app "${{ matrix.asset }}" ;;
+            Linux)   tar -czf "${{ matrix.asset }}" -C dist FireVAD-Annotator ;;
+          esac
+          ls -l "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" assets/* --title "$GITHUB_REF_NAME" \
+            --notes "Download the file for your system, unpack it and start FireVAD-Annotator. See the README for the first-start warnings on Windows and macOS."
