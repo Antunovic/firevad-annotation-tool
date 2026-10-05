@@ -129,27 +129,3 @@ python annotate_gui.py
 When run from source, the config and annotations are stored in the repository folder instead.
 `python annotate_gui.py --selftest` runs a headless self-check. The apps are built
 by the *build-apps* workflow (PyInstaller); pushing a tag such as `v1.0.1` publishes a new release.
-
----
-
-## Brzi vodič (HR)
-
-1. Na stranici [Releases](https://github.com/Antunovic/firevad-annotation-tool/releases/latest)
-   preuzmi datoteku za svoje računalo (Windows, Mac s Apple čipom, Mac s Intel procesorom ili
-   Linux), raspakiraj je i pokreni **FireVAD-Annotator**. Python ne treba instalirati.
-   - **Windows:** ako se pojavi *Windows protected your PC*, klikni **More info** → **Run anyway**.
-   - **macOS:** aplikacija nije potpisana pa je macOS prvi put odbije otvoriti. Otvori
-     **System Settings → Privacy & Security**, pri dnu klikni **Open Anyway** (na starijem macOS-u:
-     desni klik na aplikaciju → **Open** → **Open**).
-2. Videozapise (`test_VAD.zip`, oko 3 GB, link na Google Drive dobiješ od koordinatora) raspakiraj
-   u istu mapu kao i aplikaciju (npr. *Preuzimanja*) ili ih odaberi gumbom **Change dataset folder…**.
-3. Pri prvom pokretanju upiši svoje **puno ime** — njime su označene sve tvoje anotacije.
-   Rad se sprema u mapu **`FireVAD-Annotator` u tvojoj matičnoj mapi** (ne briši je); nedovršeni
-   rad možeš nastaviti kasnije.
-4. Odaberi scenu i klikni **Open scene**. Na frameu u kojem počinje novi segment pritisni **B** (novi
-   segment = nešto se pojavi ili nestane sa scene ili osoba promijeni radnju). Za svaki segment napiši
-   4 kratka opisa **na engleskom**: početno stanje scene, radnje i promjene (RGB), početno stanje u IR,
-   dinamika u IR. Piši objektivno, bez riječi tipa *slightly*/*slowly*/*rapidly*. Spremi s
-   **Ctrl+S** / **Cmd+S**.
-5. Na kraju klikni **Export all my annotations** i pošalji datoteku `combined_export.json`
-   koordinatoru.
