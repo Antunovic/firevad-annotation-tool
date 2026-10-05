@@ -38,7 +38,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pyinstaller
-          pyinstaller --noconfirm --windowed --name FireVAD-Annotator annotate_gui.py
+          pyinstaller --noconfirm --windowed --name FireVAD-Annotator \
+            --hidden-import PIL._tkinter_finder annotate_gui.py
 
       - name: Make a tiny test dataset
         shell: python
