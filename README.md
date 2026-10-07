@@ -2,7 +2,7 @@
 
 A desktop tool for annotating videos of the fire-VAD dataset (RGB and thermal/IR
 camera). In one window, the annotator marks the frame where each new segment starts
-and writes the four caption fields for every segment.
+and writes the captions for every segment.
 
 Ready-made apps for Windows, macOS and Linux: no Python and no installation needed.
 
@@ -87,9 +87,11 @@ The videos are never modified. Do not delete this folder; unfinished work contin
 2. Pause at the frame where a new segment starts and press **B**. A new segment
    starts when something appears or disappears, or when a person changes their
    action. Segments are consecutive and cover the whole video.
-3. For each segment write four short captions **in English**: RGB initial state,
-   RGB dynamics, IR initial state, IR dynamics. Preset buttons insert standard
-   sentences for common cases ("No changes", "No temperature differences", …).
+3. Write short captions **in English**. The **first segment** (the start of the video)
+   gets all four: RGB initial state, RGB dynamics, IR initial state, IR dynamics.
+   Every **later segment** gets only the two dynamics captions; its initial-state
+   fields are greyed out. Preset buttons insert standard sentences for common cases
+   ("No changes", "No temperature differences", …).
 4. Save with **Ctrl+S** (macOS: **Cmd+S**). You can stop at any time and continue later.
 5. When you are done, click **Export all my annotations** and **Yes** to open the folder.
    Send the file **`combined_export.json`** to the coordinator.

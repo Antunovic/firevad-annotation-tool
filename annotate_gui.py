@@ -9,9 +9,10 @@ sequences). In one window the annotator:
   * marks the frame index where each new segment starts (segments are
     consecutive intervals covering the whole video in which "the overall
     situation does not change"), and
-  * writes the four caption fields (caption_rgb_initial,
-    caption_rgb_dynamics, caption_ir_initial, caption_ir_dynamics) for each
-    of their own segments.
+  * writes the captions for each of their own segments: the two dynamics
+    fields (caption_rgb_dynamics, caption_ir_dynamics) for every segment, and
+    the two initial-state fields (caption_rgb_initial, caption_ir_initial)
+    only for the first segment, which starts at the beginning of the video.
 
 Output: one JSON file per (annotator, environment, scene) under
   annotations/<annotator>/environment_X/Y.json
@@ -99,6 +100,11 @@ CAPTION_FIELDS = [
     ("caption_ir_initial",    "IR initial state"),
     ("caption_ir_dynamics",   "Dynamics in IR"),
 ]
+
+# The initial state is described once, for the first segment (the start of the
+# video). Later segments only get the dynamics captions; their initial-state
+# fields stay empty in the saved JSON so the schema does not change.
+INITIAL_FIELDS = ("caption_rgb_initial", "caption_ir_initial")
 
 # One-click standard captions for common cases: field -> [(button label, text)].
 CAPTION_PRESETS = {
@@ -543,8 +549,20 @@ def count_words(text):
     return len(_WORD_RE.findall(text))
 
 
-def captions_complete(caps):
-    return all((caps.get(f) or "").strip() for f, _ in CAPTION_FIELDS)
+def caption_fields_for(start):
+    """The caption fields written for the segment that starts at frame `start`."""
+    return [(f, label) for f, label in CAPTION_FIELDS
+            if start == 0 or f not in INITIAL_FIELDS]
+
+
+def clean_captions(start, caps):
+    """All four fields as text; the ones not written for this segment are empty."""
+    allowed = {f for f, _ in caption_fields_for(start)}
+    return {f: ((caps.get(f) or "") if f in allowed else "") for f, _ in CAPTION_FIELDS}
+
+
+def captions_complete(caps, start=0):
+    return all((caps.get(f) or "").strip() for f, _ in caption_fields_for(start))
 
 
 def captions_empty(caps):
@@ -573,11 +591,10 @@ class SceneAnnotation:
         return None
 
     def get_captions(self, start):
-        caps = self.captions.get(start, {})
-        return {f: caps.get(f, "") for f, _ in CAPTION_FIELDS}
+        return clean_captions(start, self.captions.get(start, {}))
 
     def set_captions(self, start, caps):
-        self.captions[start] = {f: caps.get(f, "") for f, _ in CAPTION_FIELDS}
+        self.captions[start] = clean_captions(start, caps)
 
     def add_boundary(self, frame):
         ok, msg = add_boundary_value(self.boundaries, frame, self.n_frames)
@@ -607,9 +624,9 @@ class SceneAnnotation:
         return True, msg, new
 
     def progress(self):
-        """(segments with all four captions filled, total segments)."""
+        """(segments with every caption they need filled, total segments)."""
         segs = self.segments()
-        done = sum(captions_complete(self.get_captions(s)) for s, _ in segs)
+        done = sum(captions_complete(self.get_captions(s), s) for s, _ in segs)
         return done, len(segs)
 
     def to_segments(self, stats=None):
@@ -638,7 +655,9 @@ class SceneAnnotation:
                 starts[s] = seg
         model.boundaries = sorted(s for s in starts if s > 0)
         for s, seg in starts.items():
-            caps = {f: seg.get(f) or "" for f, _ in CAPTION_FIELDS}
+            # Files saved before the rule existed may hold initial-state text on
+            # later segments; clean_captions drops it.
+            caps = clean_captions(s, seg)
             if not captions_empty(caps):
                 model.set_captions(s, caps)
         return model
@@ -1030,7 +1049,7 @@ class AnnotationApp(tk.Tk):
         hint = ttk.Label(
             self,
             text="Select a scene and press Open. Mark the frame where each new segment starts,\n"
-                 "then write the four caption fields for each of your segments.")
+                 "then write the captions: initial state for the first segment, dynamics for every segment.")
         hint.pack(anchor="w", padx=10, pady=(0, 10))
         self._update_info()
 
@@ -1450,11 +1469,14 @@ class AnnotateWindow(tk.Toplevel):
         box.columnconfigure(0, weight=1)
         self.caption_texts = {}
         self.caption_counters = {}
+        self.caption_titles = {}
         self.preset_buttons = {}
         for i, (field, label) in enumerate(CAPTION_FIELDS):
             hdr = ttk.Frame(box)
             hdr.grid(row=2 * i, column=0, sticky="ew", padx=6, pady=(6 if i else 4, 0))
-            ttk.Label(hdr, text="%d. %s" % (i + 1, label)).pack(side="left")
+            field_title = ttk.Label(hdr, text="%d. %s" % (i + 1, label))
+            field_title.pack(side="left")
+            self.caption_titles[field] = field_title
             for btn_label, preset in CAPTION_PRESETS.get(field, []):
                 # tk.Button (not ttk): on macOS a ttk button is ~8 px taller than
                 # the header label, which shrinks the videos above.
@@ -1472,6 +1494,9 @@ class AnnotateWindow(tk.Toplevel):
             self.caption_texts[field] = txt
             self.caption_counters[field] = cnt
         ttk.Frame(box, height=6).grid(row=8, column=0)
+        # Look of an editable field, restored when a segment that needs it is selected.
+        self._caption_bg = self.caption_texts[CAPTION_FIELDS[0][0]].cget("background")
+        self._caption_title_fg = str(self.caption_titles[CAPTION_FIELDS[0][0]].cget("foreground"))
         self._load_widgets()
         self._refresh_segment_list()
 
@@ -1503,6 +1528,8 @@ class AnnotateWindow(tk.Toplevel):
         if w is None:
             return True
         cls = w.winfo_class()
+        if cls == "Text" and str(w.cget("state")) == "disabled":
+            return True     # a locked caption field cannot be typed into
         return cls not in self._TEXTY_CLASSES and cls not in ("Listbox", "TListbox")
 
     def _space_allowed(self):
@@ -1756,9 +1783,10 @@ class AnnotateWindow(tk.Toplevel):
 
     def _segment_label(self, i, start, end):
         caps = self.model.get_captions(start)
-        filled = sum(bool(caps[f].strip()) for f, _ in CAPTION_FIELDS)
-        mark = "✓ captions done" if filled == len(CAPTION_FIELDS) else \
-            "%d/%d captions" % (filled, len(CAPTION_FIELDS))
+        needed = caption_fields_for(start)
+        filled = sum(bool(caps[f].strip()) for f, _ in needed)
+        mark = "✓ captions done" if filled == len(needed) else \
+            "%d/%d captions" % (filled, len(needed))
         return "Segment %d   frames %d–%d   %s" % (i, start, end, mark)
 
     def _refresh_segment_list(self):
@@ -1786,7 +1814,8 @@ class AnnotateWindow(tk.Toplevel):
         self.seg_list.selection_set(i)
 
     def _store_widgets(self):
-        caps = {f: self.caption_texts[f].get("1.0", "end-1c") for f, _ in CAPTION_FIELDS}
+        caps = {f: self.caption_texts[f].get("1.0", "end-1c")
+                for f, _ in caption_fields_for(self.cur_seg_start)}
         if captions_empty(caps):
             self.model.captions.pop(self.cur_seg_start, None)
         else:
@@ -1794,11 +1823,27 @@ class AnnotateWindow(tk.Toplevel):
 
     def _load_widgets(self):
         caps = self.model.get_captions(self.cur_seg_start)
-        for field, _ in CAPTION_FIELDS:
+        editable = {f for f, _ in caption_fields_for(self.cur_seg_start)}
+        for i, (field, label) in enumerate(CAPTION_FIELDS):
             txt = self.caption_texts[field]
+            title = self.caption_titles[field]
+            on = field in editable
+            txt.configure(state="normal")       # a locked Text ignores delete/insert
             txt.delete("1.0", "end")
             txt.insert("1.0", caps[field])
-            self._update_counter(field)
+            if on:
+                txt.configure(background=self._caption_bg)
+                title.configure(text="%d. %s" % (i + 1, label),
+                                foreground=self._caption_title_fg)
+                self._update_counter(field)
+            else:
+                # The window background reads as "greyed out" in light and dark mode.
+                txt.configure(state="disabled", background=self.cget("background"))
+                title.configure(text="%d. %s (first segment only)" % (i + 1, label),
+                                foreground="#888888")
+                self.caption_counters[field].configure(text="")
+            for btn in self.preset_buttons.get(field, []):
+                btn.configure(state="normal" if on else "disabled")
 
     def _select_segment(self, idx, jump=False):
         segs = self.model.segments()
@@ -1877,6 +1922,8 @@ class AnnotateWindow(tk.Toplevel):
         self._mark_dirty(silent=True)
 
     def _apply_preset(self, field, text):
+        if field not in {f for f, _ in caption_fields_for(self.cur_seg_start)}:
+            return
         txt = self.caption_texts[field]
         current = txt.get("1.0", "end-1c").strip()
         if current == text:
@@ -1946,7 +1993,8 @@ class AnnotateWindow(tk.Toplevel):
         if not silent_ok:
             empty = []
             for i, d in enumerate(segs):
-                missing = [label for f, label in CAPTION_FIELDS if not d[f].strip()]
+                missing = [label for f, label in caption_fields_for(d["start_frame"])
+                           if not d[f].strip()]
                 if missing:
                     empty.append("Segment %d: %s" % (i, ", ".join(missing)))
             if empty:
@@ -2145,15 +2193,26 @@ def run_selftest(dataset_root=None, full_scene_limit=1):
         m = SceneAnnotation(632)
         m.set_captions(0, full)
         m.add_boundary(100)
-        m.set_captions(100, dict(full, caption_rgb_initial="second"))
+        m.set_captions(100, dict(full, caption_rgb_dynamics="second"))
         m.add_boundary(50)
         check("model split keeps captions",
               m.segments() == [(0, 49), (50, 99), (100, 631)]
               and m.get_captions(0) == full and captions_empty(m.get_captions(50))
-              and m.get_captions(100)["caption_rgb_initial"] == "second")
+              and m.get_captions(100)["caption_rgb_dynamics"] == "second")
+        check("initial state only for the first segment",
+              [f for f, _ in caption_fields_for(0)] == [f for f, _ in CAPTION_FIELDS]
+              and [f for f, _ in caption_fields_for(50)]
+              == ["caption_rgb_dynamics", "caption_ir_dynamics"]
+              and not m.get_captions(100)["caption_rgb_initial"]
+              and not m.get_captions(100)["caption_ir_initial"]
+              and not m.captions[100]["caption_ir_initial"])
+        check("later segment needs only dynamics",
+              captions_complete(m.get_captions(100), 100)
+              and not captions_complete(m.get_captions(100), 0)
+              and captions_complete(m.get_captions(0), 0))
         ok, _, new = m.nudge_boundary(100, 1)
         check("model nudge moves captions",
-              ok and new == 101 and m.get_captions(101)["caption_rgb_initial"] == "second"
+              ok and new == 101 and m.get_captions(101)["caption_rgb_dynamics"] == "second"
               and 100 not in m.captions)
         check("model nudge collision", not m.nudge_boundary(50, 51)[0])
         check("model segment 0 fixed", not m.remove_boundary(0)[0]
@@ -2172,6 +2231,17 @@ def run_selftest(dataset_root=None, full_scene_limit=1):
         back3 = SceneAnnotation.from_payload(legacy, 632)
         check("legacy boundaries load", back3.boundaries == [30] and back3.progress() == (0, 2),
               str(back3.boundaries))
+        older = {"segments": [
+            dict({"start_frame": 0, "end_frame": 29}, **{f: "a" for f, _ in CAPTION_FIELDS}),
+            dict({"start_frame": 30, "end_frame": 631}, **{f: "b" for f, _ in CAPTION_FIELDS})]}
+        back4 = SceneAnnotation.from_payload(older, 632)
+        saved4 = build_annotation_payload(1, 2, "T", [], back4.to_segments())["segments"]
+        check("older file: later initial state dropped",
+              back4.progress() == (2, 2)
+              and saved4[0]["caption_rgb_initial"] == "a" and saved4[0]["caption_ir_initial"] == "a"
+              and saved4[1]["caption_rgb_initial"] == "" and saved4[1]["caption_ir_initial"] == ""
+              and saved4[1]["caption_rgb_dynamics"] == "b" and saved4[1]["caption_ir_dynamics"] == "b",
+              str(saved4))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -2242,7 +2312,7 @@ def _guitest_step1(app):
 
 
 def _guitest_type(w, prefix):
-    for field, _ in CAPTION_FIELDS:
+    for field, _ in caption_fields_for(w.cur_seg_start):
         w.caption_texts[field].delete("1.0", "end")
         w.caption_texts[field].insert("1.0", "%s %s" % (prefix, field))
         w._caption_changed(field)
@@ -2278,13 +2348,37 @@ def _guitest_step2(app):
     w._fit_panels()
     assert w.panel_height == big, "videos did not grow back"
     assert w.seg_list.size() == 1 and w.cur_seg_start == 0, "new scene should have 1 segment"
+    # the first segment takes all four captions
+    for field, _ in CAPTION_FIELDS:
+        assert str(w.caption_texts[field].cget("state")) == "normal", "first segment field locked"
+        for btn in w.preset_buttons.get(field, []):
+            assert str(btn.cget("state")) == "normal", "first segment preset disabled"
     _guitest_type(w, "seg0")
+    assert "done" in w.seg_list.get(0), w.seg_list.get(0)
     w._seek(50)
     w.add_boundary()
     assert w.cur_seg_start == 50, "new segment not selected after B"
-    assert w.caption_texts["caption_rgb_initial"].get("1.0", "end-1c") == "", \
-        "new segment should start with empty captions"
+    # later segments take dynamics only: the initial-state fields are locked
+    for field, _ in CAPTION_FIELDS:
+        locked = field in INITIAL_FIELDS
+        assert str(w.caption_texts[field].cget("state")) == ("disabled" if locked else "normal"), \
+            "wrong lock state for %s on a later segment" % field
+        assert w.caption_texts[field].get("1.0", "end-1c") == "", \
+            "new segment should start with empty captions"
+        for btn in w.preset_buttons.get(field, []):
+            assert str(btn.cget("state")) == ("disabled" if locked else "normal"), \
+                "wrong preset state for %s on a later segment" % field
+        assert ("first segment only" in w.caption_titles[field].cget("text")) == locked, \
+            "field title does not say initial state is first-segment only"
+    w.caption_texts["caption_rgb_initial"].insert("1.0", "typed")
+    w._caption_changed("caption_rgb_initial")
+    assert w.caption_texts["caption_rgb_initial"].get("1.0", "end-1c") == "" and \
+        not w.model.get_captions(50)["caption_rgb_initial"], "initial state typed into a later segment"
+    w._apply_preset("caption_rgb_initial", CAPTION_PRESETS["caption_rgb_initial"][0][1])
+    assert not w.model.get_captions(50)["caption_rgb_initial"], "initial preset applied to a later segment"
     _guitest_type(w, "seg1")
+    assert "done" in w.seg_list.get(1), "later segment with its 2 dynamics captions not done: " \
+        + w.seg_list.get(1)
     w._seek(120)
     w.add_boundary()
     assert w.seg_list.size() == 3, "expected 3 segments"
@@ -2293,16 +2387,29 @@ def _guitest_step2(app):
         btn = w.preset_buttons[field][0]
         assert btn.winfo_viewable(), "preset button hidden"
         btn.invoke()
-        assert w.caption_texts[field].get("1.0", "end-1c") == presets[0][1], "preset not applied"
-    assert captions_complete(w.model.get_captions(120)), "preset captions not stored"
-    for field, _ in CAPTION_FIELDS:
+        want = "" if field in INITIAL_FIELDS else presets[0][1]
+        assert w.caption_texts[field].get("1.0", "end-1c") == want, "preset not applied"
+    assert captions_complete(w.model.get_captions(120), 120), "preset captions not stored"
+    for field, _ in caption_fields_for(120):
         w.caption_texts[field].delete("1.0", "end")
         w._caption_changed(field)
-    # paused playhead in segment 0 -> editor follows it
+    # paused playhead in segment 0 -> editor follows it and unlocks the initial state
     w._seek(10)
     assert w.cur_seg_start == 0 and \
         w.caption_texts["caption_rgb_initial"].get("1.0", "end-1c") == "seg0 caption_rgb_initial", \
         "caption editor did not follow the playhead"
+    assert all(str(w.caption_texts[f].cget("state")) == "normal" for f, _ in CAPTION_FIELDS), \
+        "initial-state fields not editable again on the first segment"
+    # a locked field must not block the frame hotkeys (focus is faked: real focus
+    # depends on the window manager)
+    w.focus_get = lambda: w.caption_texts["caption_rgb_initial"]
+    try:
+        assert not w._nav_allowed(), "typing in an editable caption field should block hotkeys"
+        w._select_segment(1)
+        assert w._nav_allowed(), "a locked caption field should not block hotkeys"
+        w._select_segment(0)
+    finally:
+        del w.focus_get
     # move segment 1's start by +1: its captions move with it
     w.seg_list.selection_clear(0, "end")
     w.seg_list.selection_set(1)
@@ -2310,7 +2417,9 @@ def _guitest_step2(app):
     assert w.frame_idx == 50, "list selection did not jump to segment start"
     w.nudge_boundary(1)
     assert w.cur_seg_start == 51 and w.frame_idx == 51, "nudge failed"
-    assert w.caption_texts["caption_rgb_initial"].get("1.0", "end-1c") == "seg1 caption_rgb_initial"
+    assert w.caption_texts["caption_rgb_dynamics"].get("1.0", "end-1c") == "seg1 caption_rgb_dynamics"
+    assert str(w.caption_texts["caption_rgb_initial"].cget("state")) == "disabled", \
+        "initial state unlocked after moving a later segment's start"
     # remove the empty last segment (no confirmation needed)
     w._select_segment(2, jump=True)
     w.delete_boundary()
@@ -2320,10 +2429,27 @@ def _guitest_step2(app):
     assert [(s["start_frame"], s["end_frame"]) for s in data["segments"]] == \
         [(0, 50), (51, w.n_frames - 1)], "saved segments wrong"
     assert data["segments"][0]["caption_ir_dynamics"] == "seg0 caption_ir_dynamics"
-    assert data["segments"][1]["caption_rgb_initial"] == "seg1 caption_rgb_initial"
+    assert data["segments"][0]["caption_ir_initial"] == "seg0 caption_ir_initial"
+    assert data["segments"][1]["caption_rgb_dynamics"] == "seg1 caption_rgb_dynamics"
+    assert data["segments"][1]["caption_rgb_initial"] == "" \
+        and data["segments"][1]["caption_ir_initial"] == "", \
+        "a later segment was saved with initial-state text"
     assert data["segments"][0]["temp_min_c"] is not None, "temp stats missing"
     assert data["anomaly_subtype"] is None and "phase" not in data
     assert "done" in app.tree.item(app.tree.get_children()[0])["values"][3], "status not done"
+    # saving only asks for the captions a segment can have
+    prompts = []
+    real_ask = messagebox.askyesno
+    messagebox.askyesno = lambda *a, **k: prompts.append(a[1]) or False
+    try:
+        assert w.save() and not prompts, "complete captions triggered a prompt: %s" % prompts
+        w._select_segment(1)
+        w.caption_texts["caption_rgb_dynamics"].delete("1.0", "end")
+        w._caption_changed("caption_rgb_dynamics")
+        assert not w.save() and len(prompts) == 1, "empty caption not reported"
+        assert "Segment 1: Dynamics in RGB\n" in prompts[0] and "initial" not in prompts[0], prompts[0]
+    finally:
+        messagebox.askyesno = real_ask
     w._force_close()
     app.after(600, lambda: _guitest_guard(app, _guitest_step3))
 
@@ -2334,7 +2460,8 @@ def _guitest_step3(app):
     app.open_scene()
     w = app.active_window
     assert w.model.boundaries == [51], "saved boundaries not restored"
-    assert w.model.get_captions(51)["caption_rgb_initial"] == "seg1 caption_rgb_initial"
+    assert w.model.get_captions(51)["caption_rgb_dynamics"] == "seg1 caption_rgb_dynamics"
+    assert w.model.get_captions(0)["caption_rgb_initial"] == "seg0 caption_rgb_initial"
     w._force_close()
     # an earlier boundary-only file is used as the starting point
     sc = app.scenes[1]
